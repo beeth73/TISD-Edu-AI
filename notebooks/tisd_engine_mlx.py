@@ -1,0 +1,68 @@
+import os
+import time
+import json
+import psutil
+from mlx_lm import load, generate
+from mlx_lm.sample_utils import make_sampler
+from dotenv import load_dotenv
+import chromadb
+from sentence_transformers import SentenceTransformer
+
+load_dotenv()
+
+# --- CONFIG ---
+MODEL_ID       = "mlx-community/Phi-3-mini-4k-instruct-4bit"
+EMBED_MODEL_ID = "all-MiniLM-L6-v2"
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__name__), ".."))
+VECTORSTORE_DIR = os.path.join(BASE_DIR, "vectorstore")
+COLLECTION_NAME = "tisd_knowledge"
+
+SAMPLER_CONFIG = {"temp": 0.0}
+
+SYSTEM_PROMPT = """You are Tara, a warm and patient teacher. 
+Use ONLY the CONTEXT to answer in 2-3 short sentences for a child.
+If you don't know, say: 'Let's ask your teacher!'"""
+
+class TISDEngine:
+    def __init__(self, verbose=True):
+        self.verbose = verbose
+        self.model, self.tokenizer, self.embedder, self.collection = None, None, None, None
+        self.sampler = make_sampler(**SAMPLER_CONFIG)
+
+    def load(self):
+        self.embedder = SentenceTransformer(EMBED_MODEL_ID)
+        client = chromadb.PersistentClient(path=VECTORSTORE_DIR)
+        self.collection = client.get_collection(COLLECTION_NAME)
+        self.model, self.tokenizer = load(MODEL_ID)
+        print(f"✅ Engine Ready. RAM: {round(psutil.virtual_memory().used / 1e9, 2)}GB")
+
+    def ask(self, question, grade=4, verbose=None):
+        # FIX: The parameter 'verbose' is now explicitly in the signature!
+        if verbose is None:
+            verbose = self.verbose
+
+        # 1. Retrieve
+        q_emb = self.embedder.encode(question).tolist()
+        res = self.collection.query(query_embeddings=[q_emb], n_results=3, where={"class_level": {"$lte": int(grade)}})
+        context = "\n\n".join(res["documents"][0])
+
+        # 2. Build Prompt
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"CONTEXT:\n{context}\n\nQUESTION: {question}"},
+        ]
+        prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+
+        # 3. Generate
+        if verbose:
+            print(f"\n🧑‍🎓 Student: {question}\n🤖 Tara: ", end="", flush=True)
+
+        answer = generate(
+            self.model, 
+            self.tokenizer, 
+            prompt=prompt, 
+            max_tokens=150, 
+            sampler=self.sampler, 
+            verbose=verbose 
+        )
+        return answer.strip()
