@@ -5,7 +5,9 @@ import chromadb
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning)
+
+warnings.filterwarnings('ignore')
+
 # --- Initialization ---
 device = "mps" if torch.backends.mps.is_available() else "cpu"
 tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
@@ -21,54 +23,64 @@ client = chromadb.PersistentClient(path="../vectorstore/chroma_db")
 collection = client.get_collection(name="tisd_knowledge_base")
 
 def post_process_answer(answer):
-    forbidden = ["The context mentions", "The question asks", "To summarize", "Question:", "Answer:"]
+    """Aggressive cleanup to stop any conversational filler."""
+    # If the model tries to ask a question back, cut it off
+    if "?" in answer:
+        answer = answer.split("?")[0]
+    
+    forbidden = ["The context says", "The context states", "Based on the text", "Yes, please", "Question:", "Answer:"]
     for phrase in forbidden:
-        answer = answer.replace(phrase, "")
+        # Case insensitive replace
+        answer = answer.replace(phrase, "").replace(phrase.lower(), "")
+        
     return answer.strip()
 
 def chat_with_tisd(question, top_k=2, class_filter=None):
     start_time = time.time()
     
-    # 1. PURE SEMANTIC RETRIEVAL (ChromaDB)
-    # Vectors understand "Meaning", not just keywords.
+    # 1. PURE SEMANTIC RETRIEVAL (Low noise)
     where_clause = {"class": str(class_filter)} if class_filter else None
+    results = collection.query(query_texts=[question], n_results=top_k, where=where_clause)
     
-    results = collection.query(
-        query_texts=[question], 
-        n_results=top_k, 
-        where=where_clause
-    )
-    
-    # Get the top chunks
+    # Safely get chunks and truncate to prevent context poisoning
     retrieved_contexts = results['documents'][0]
+    combined_context = " ".join(retrieved_contexts)[:800] 
     
-    # Crucial: Truncate context to prevent overloading the 1.1B model
-    combined_context = " ".join(retrieved_contexts)[:1000] # Limit to ~150 words
-    
-    # 2. THE "STRICT" PROMPT
-    # No few-shot this time. Just extreme clarity.
+    # 2. STRICT PROMPT + CHATML TAGS (The Golden Mean)
     system_prompt = (
-        "You are TISD, a teacher. "
-        "Read the Context below. Answer the Question using ONLY the facts from the Context. "
-        "Keep it to one sentence."
+        "You are a strict data extractor. "
+        "Answer the Question using ONLY the exact facts from the Information provided. "
+        "Keep your answer under 2 sentences. Do not ask questions."
     )
     
-    full_prompt = f"<|system|>\n{system_prompt}</s>\n<|user|>\nContext: {combined_context}\nQuestion: {question}</s>\n<|assistant|>\n"
+    full_prompt = (
+        f"<|system|>\n{system_prompt}</s>\n"
+        f"<|user|>\nInformation: {combined_context}\n\nQuestion: {question}</s>\n"
+        f"<|assistant|>\n"
+    )
     
     inputs = tokenizer(full_prompt, return_tensors="pt").to(device)
     
-    # 3. GENERATION
+    # 3. DETERMINISTIC GENERATION
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
-            max_new_tokens=100, # Shorter output = less chance to hallucinate
-            temperature=0.1,    # Extremely focused
-            do_sample=True,
+            max_new_tokens=50,   
+            temperature=0.01,    
+            do_sample=False,
             pad_token_id=tokenizer.eos_token_id,
             repetition_penalty=1.15
         )
     
-    raw_answer = tokenizer.decode(outputs[0], skip_special_tokens=True).split("<|assistant|>\n")[-1].strip()
+    # 4. PARSE OUTPUT
+    raw_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    # Extract only what comes after the assistant tag
+    raw_answer = raw_output.split("<|assistant|>\n")[-1].strip()
+    
     final_answer = post_process_answer(raw_answer)
+    
+    # SOTA Failsafe: If the model generated nothing, or a single weird word
+    if len(final_answer) < 5 or "Yes" in final_answer:
+        final_answer = "I'm sorry, that specific answer isn't in my textbooks yet!"
     
     return final_answer, combined_context, time.time() - start_time
