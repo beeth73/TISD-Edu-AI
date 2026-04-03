@@ -45,6 +45,15 @@ Most educational AI tools are wrappers for cloud-based LLMs that are prone to ha
 
 ---
 
+## 📊 Data & Compute Scale
+TISD isn't just a "toy" chatbot; it is a high-density retrieval system.
+Dataset Depth: Processed 4,656 pages of academic text, including the full NCERT Grade 1–4 curriculum and high-resolution encyclopedias.
+Granularity: The pipeline successfully generated and indexed 6,422 semantic chunks.
+Mathematical Complexity: The system manages a vector space of 6,422 x 384 dimensions. Every query involves a real-time similarity calculation across 2.4 million data points, executed in milliseconds on the M4 GPU.
+Resilience: The ingestion engine is built to handle "real-world" data, successfully recovering from stream errors and EOF (End Of File) markers in legacy PDF formats without crashing the pipeline.
+
+---
+
 ## 🛠️ Installation & Setup
 
 ### 1. Environment Setup
@@ -85,5 +94,5 @@ TISD includes a **SOTA Stress-Testing Suite** (`08_sota_eval.ipynb`) that:
 ---
 **Author:** beeth73  
 **License:** MIT  
-**"The tire marks on the track are proof that engineering happened here."**
+***"The tire marks on the track are proof that engineering happened here."***
 ---
