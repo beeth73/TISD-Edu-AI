@@ -1,11 +1,4 @@
-This is the moment TISD moves from a "folder on your Mac" to a **"Professional Open Source Project."** An extensive README is your calling card for recruiters and fellow engineers.
 
-Below is a masterfully crafted, senior-engineer-grade `README.md` and the release sequence for **v2.1.0**.
-
-### Step 1: Overwrite your `~/tisd/README.md`
-Copy this exactly. I have written it to highlight your M4 optimization and the 81.1% accuracy milestone.
-
-```markdown
 # 🎒 TISD: The Intelligent Student Desk
 **Local-First, Native-Performance RAG Pipeline for Grade 1–10 Academic Assistance.**
 
@@ -93,6 +86,4 @@ TISD includes a **SOTA Stress-Testing Suite** (`08_sota_eval.ipynb`) that:
 **Author:** beeth73  
 **License:** MIT  
 **"The tire marks on the track are proof that engineering happened here."**
-```
-
 ---
