@@ -47,10 +47,10 @@ Most educational AI tools are wrappers for cloud-based LLMs that are prone to ha
 
 ## 📊 Data & Compute Scale
 TISD isn't just a "toy" chatbot; it is a high-density retrieval system.
-Dataset Depth: Processed 4,656 pages of academic text, including the full NCERT Grade 1–4 curriculum and high-resolution encyclopedias.
-Granularity: The pipeline successfully generated and indexed 6,422 semantic chunks.
-Mathematical Complexity: The system manages a vector space of 6,422 x 384 dimensions. Every query involves a real-time similarity calculation across 2.4 million data points, executed in milliseconds on the M4 GPU.
-Resilience: The ingestion engine is built to handle "real-world" data, successfully recovering from stream errors and EOF (End Of File) markers in legacy PDF formats without crashing the pipeline.
+1. **Dataset Depth:** Processed 4,656 pages of academic text, including the full NCERT Grade 1–4 curriculum and high-resolution encyclopedias.
+2. **Granularity:** The pipeline successfully generated and indexed 6,422 semantic chunks.
+3. **Mathematical Complexity:** The system manages a vector space of 6,422 x 384 dimensions. Every query involves a real-time similarity calculation across 2.4 million data points, executed in milliseconds on the M4 GPU (8 Cores).
+4. **Resilience:** The ingestion engine is built to handle "real-world" data, successfully recovering from stream errors and EOF (End Of File) markers in legacy PDF formats without crashing the pipeline.
 
 ---
 
