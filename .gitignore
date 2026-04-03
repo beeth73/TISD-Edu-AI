@@ -1,0 +1,14 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+.env
+
+# Large Binary Files (Excluding from Git)
+models/
+vectorstore/
+data/raw/
+data/eval_results/*.json
+
+# Logs
+*.log
+.DS_Store
